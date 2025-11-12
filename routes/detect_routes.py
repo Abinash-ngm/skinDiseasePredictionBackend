@@ -41,7 +41,7 @@ def detect_disease(disease_type):
             return jsonify({'error': 'Invalid file type. Only PNG, JPG, JPEG allowed'}), 400
         
         # Get user
-        uid = request.user.get('uid')
+        uid = request.user.get('uid')  # type: ignore
         user = db.query(User).filter(User.uid == uid).first()
         
         if not user:

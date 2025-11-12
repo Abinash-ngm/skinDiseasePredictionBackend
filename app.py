@@ -28,6 +28,9 @@ CORS(app, resources={
 })
 
 # Initialize database
+if not Config.SQLALCHEMY_DATABASE_URI:
+    raise ValueError("DATABASE_URL environment variable is required")
+
 engine = create_engine(
     Config.SQLALCHEMY_DATABASE_URI,
     echo=Config.SQLALCHEMY_ECHO,

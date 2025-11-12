@@ -12,7 +12,7 @@ def chat_with_gemini(message, conversation_history=None):
         if not api_key:
             raise Exception("Gemini API key not configured")
         
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         
         # System prompt for health assistant
         system_context = """You are a helpful AI health assistant. Provide accurate, helpful health information while always reminding users to consult healthcare professionals for serious concerns. 
