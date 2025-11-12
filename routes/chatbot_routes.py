@@ -10,6 +10,9 @@ def chat():
     try:
         data = request.get_json()
         
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
         if 'message' not in data:
             return jsonify({'error': 'Message is required'}), 400
         
@@ -25,4 +28,8 @@ def chat():
         }), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Chatbot error: {e}")
+        return jsonify({
+            'error': str(e),
+            'response': 'Sorry, I encountered an error. Please try again later.'
+        }), 500
