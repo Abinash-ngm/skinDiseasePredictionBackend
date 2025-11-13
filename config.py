@@ -24,7 +24,7 @@ class Config:
     # API Keys
     GROQ_API_KEY = os.getenv('GROQ_API_KEY')
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-    GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
+    SERPAPI_KEY = os.getenv('SERPAPI_KEY')
     
     # Upload Configuration
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size

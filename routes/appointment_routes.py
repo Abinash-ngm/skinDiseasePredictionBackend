@@ -53,8 +53,11 @@ def create_appointment():
         }), 201
         
     except ValueError as e:
+        print(f"Date/time validation error: {e}")
         return jsonify({'error': f'Invalid date/time format: {str(e)}'}), 400
     except Exception as e:
+        print(f"Error creating appointment: {e}")
+        db.rollback()
         return jsonify({'error': str(e)}), 500
 
 @appointment_bp.route('/<user_uid>', methods=['GET'])
@@ -87,6 +90,7 @@ def get_user_appointments(user_uid):
         }), 200
         
     except Exception as e:
+        print(f"Error fetching appointments: {e}")
         return jsonify({'error': str(e)}), 500
 
 @appointment_bp.route('/<appointment_id>', methods=['DELETE'])
@@ -121,6 +125,8 @@ def cancel_appointment(appointment_id):
     except ValueError:
         return jsonify({'error': 'Invalid appointment ID'}), 400
     except Exception as e:
+        print(f"Error cancelling appointment: {e}")
+        db.rollback()
         return jsonify({'error': str(e)}), 500
 
 @appointment_bp.route('/<appointment_id>', methods=['PATCH'])
@@ -151,4 +157,6 @@ def update_appointment(appointment_id):
         }), 200
         
     except Exception as e:
+        print(f"Error updating appointment: {e}")
+        db.rollback()
         return jsonify({'error': str(e)}), 500

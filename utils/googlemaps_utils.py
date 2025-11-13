@@ -3,80 +3,144 @@ from config import Config
 
 def find_nearby_clinics(latitude, longitude, radius=5000):
     """
-    Find nearby clinics using Google Maps Places API
+    Find nearby clinics using SerpAPI Google Maps API
     radius: in meters (default 5km)
     """
     try:
-        api_key = Config.GOOGLE_MAPS_API_KEY
+        api_key = Config.SERPAPI_KEY
         
         if not api_key:
-            raise Exception("Google Maps API key not configured")
+            raise Exception("SerpAPI key not configured")
         
-        # Google Places API endpoint
-        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+        # SerpAPI Google Maps API endpoint
+        url = "https://serpapi.com/search.json"
         
+        # SerpAPI parameters for Google Maps local search
+        # Format: ll=@latitude,longitude,zoomz (SerpAPI specific format)
         params = {
-            'location': f'{latitude},{longitude}',
-            'radius': radius,
-            'type': 'hospital|doctor|health',
-            'keyword': 'clinic',
-            'key': api_key
+            'engine': 'google_maps',
+            'q': 'hospital clinic doctor',
+            'll': f'@{latitude},{longitude},14z',
+            'type': 'search',
+            'api_key': api_key
         }
         
-        response = requests.get(url, params=params, timeout=10)
+        print(f"Searching for clinics near ({latitude}, {longitude}) within {radius}m")
+        
+        response = requests.get(url, params=params, timeout=15)
         response.raise_for_status()
         
         data = response.json()
         
-        if data.get('status') != 'OK':
+        # Print raw SerpAPI response in JSON format
+        print("\n" + "="*80)
+        print("📡 SerpAPI Response (JSON):")
+        print("="*80)
+        import json
+        print(json.dumps(data, indent=2))
+        print("="*80 + "\n")
+        
+        # Check for errors in SerpAPI response
+        if 'error' in data:
+            print(f"❌ SerpAPI error: {data['error']}")
             return []
         
-        # Format results
+        # Format results from SerpAPI
         clinics = []
-        for place in data.get('results', [])[:10]:  # Limit to 10 results
+        local_results = data.get('local_results', [])
+        
+        for place in local_results[:15]:  # Limit to 15 results
+            # Extract coordinates from position
+            position = place.get('gps_coordinates', {})
+            
             clinic = {
-                'name': place.get('name'),
-                'address': place.get('vicinity'),
-                'location': place.get('geometry', {}).get('location'),
+                'name': place.get('title', 'Unknown Clinic'),
+                'address': place.get('address', ''),
+                'location': {
+                    'lat': position.get('latitude'),
+                    'lng': position.get('longitude')
+                } if position else None,
                 'rating': place.get('rating'),
-                'total_ratings': place.get('user_ratings_total'),
-                'place_id': place.get('place_id'),
-                'open_now': place.get('opening_hours', {}).get('open_now'),
-                'map_url': f"https://www.google.com/maps/place/?q=place_id:{place.get('place_id')}"
+                'total_ratings': place.get('reviews', 0),
+                'place_id': place.get('place_id', ''),
+                'type': place.get('type', ''),
+                'phone': place.get('phone', ''),
+                'hours': place.get('hours', ''),
+                'open_now': place.get('open_state', '') == 'Open',
+                'website': place.get('website', ''),
+                'map_url': f"https://www.google.com/maps/search/?api=1&query={position.get('latitude', latitude)},{position.get('longitude', longitude)}" if position else None
             }
             clinics.append(clinic)
         
+        # Print formatted clinic data in JSON
+        print("\n" + "="*80)
+        print(f"🏥 Found {len(clinics)} Clinics (Formatted JSON):")
+        print("="*80)
+        import json
+        print(json.dumps(clinics, indent=2, ensure_ascii=False))
+        print("="*80 + "\n")
+        
+        print(f"✅ Successfully returned {len(clinics)} clinics")
         return clinics
         
     except requests.exceptions.RequestException as e:
-        print(f"Google Maps API error: {e}")
+        print(f"SerpAPI request error: {e}")
         raise Exception(f"Failed to fetch nearby clinics: {str(e)}")
     except Exception as e:
         print(f"Clinic search error: {e}")
+        import traceback
+        traceback.print_exc()
         raise Exception(f"Search failed: {str(e)}")
 
 def get_clinic_details(place_id):
-    """Get detailed information about a specific clinic"""
+    """Get detailed information about a specific clinic using SerpAPI"""
     try:
-        api_key = Config.GOOGLE_MAPS_API_KEY
+        api_key = Config.SERPAPI_KEY
         
-        url = "https://maps.googleapis.com/maps/api/place/details/json"
+        if not api_key:
+            raise Exception("SerpAPI key not configured")
+        
+        url = "https://serpapi.com/search.json"
         
         params = {
+            'engine': 'google_maps',
+            'type': 'place',
             'place_id': place_id,
-            'fields': 'name,formatted_address,formatted_phone_number,opening_hours,rating,website,geometry',
-            'key': api_key
+            'api_key': api_key
         }
         
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=15)
         response.raise_for_status()
         
         data = response.json()
         
-        if data.get('status') == 'OK':
-            return data.get('result')
-        return None
+        if 'error' in data:
+            print(f"SerpAPI error: {data['error']}")
+            return None
+        
+        # Extract place details
+        place = data.get('place_results', {})
+        
+        if not place:
+            return None
+        
+        details = {
+            'name': place.get('title', ''),
+            'address': place.get('address', ''),
+            'phone': place.get('phone', ''),
+            'website': place.get('website', ''),
+            'rating': place.get('rating'),
+            'reviews': place.get('reviews', 0),
+            'type': place.get('type', ''),
+            'hours': place.get('hours', []),
+            'gps_coordinates': place.get('gps_coordinates', {}),
+            'place_id': place_id
+        }
+        
+        return details
         
     except Exception as e:
         print(f"Get clinic details error: {e}")
+        import traceback
+        traceback.print_exc()
         return None

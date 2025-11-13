@@ -23,12 +23,10 @@ def analyze_disease(image_url, disease_type):
         
         # Construct prompt based on disease type
         if disease_type == 'skin':
-            prompt = f"""Analyze this skin image and detect any potential skin diseases or conditions.
-            
-Image URL: {image_url}
+            system_prompt = """Analyze this skin image and detect any potential skin diseases or conditions.
 
 Provide a response in the following JSON format:
-{{
+{
     "disease_name": "Name of the detected condition",
     "confidence": 0.85,
     "severity": "low/medium/high",
@@ -38,16 +36,14 @@ Provide a response in the following JSON format:
         "Recommendation 3"
     ],
     "description": "Brief description of the condition"
-}}
+}
 
 Be professional, accurate, and always recommend consulting a dermatologist for proper diagnosis."""
         else:  # eye
-            prompt = f"""Analyze this eye image and detect any potential eye diseases or conditions.
-
-Image URL: {image_url}
+            system_prompt = """Analyze this eye image and detect any potential eye diseases or conditions.
 
 Provide a response in the following JSON format:
-{{
+{
     "disease_name": "Name of the detected condition",
     "confidence": 0.85,
     "severity": "low/medium/high",
@@ -57,16 +53,28 @@ Provide a response in the following JSON format:
         "Recommendation 3"
     ],
     "description": "Brief description of the condition"
-}}
+}
 
 Be professional, accurate, and always recommend consulting an ophthalmologist for proper diagnosis."""
         
+        # Vision models require content to be in array format with image and text
         payload = {
             "model": "llama-3.2-90b-vision-preview",
             "messages": [
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": system_prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_url
+                            }
+                        }
+                    ]
                 }
             ],
             "temperature": 0.7,

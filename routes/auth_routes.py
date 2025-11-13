@@ -22,7 +22,7 @@ def verify_user():
         user = db.query(User).filter(User.uid == uid).first()
         
         if not user:
-            # Create new user
+            # Create new user in database
             user = User(
                 uid=uid,
                 name=name,
@@ -32,18 +32,27 @@ def verify_user():
             db.commit()
             db.refresh(user)
             
+            print(f"✓ New user created in database: {email} (UID: {uid})")
+            
             return jsonify({
                 'message': 'User created successfully',
                 'user': user.to_dict()
             }), 201
         else:
-            # User exists, return info
+            # Update user info if name changed
+            if name and name != user.name:
+                user.name = name
+                db.commit()
+                db.refresh(user)
+            
             return jsonify({
                 'message': 'User verified',
                 'user': user.to_dict()
             }), 200
             
     except Exception as e:
+        print(f"Error verifying user: {e}")
+        db.rollback()
         return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/user/<uid>', methods=['GET'])
@@ -61,4 +70,52 @@ def get_user(uid):
         return jsonify({'user': user.to_dict()}), 200
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@auth_bp.route('/register', methods=['POST'])
+def register_user():
+    """Register new user in database (called after Firebase registration)"""
+    try:
+        from app import db
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('uid') or not data.get('email'):
+            return jsonify({'error': 'Missing required fields: uid and email'}), 400
+        
+        uid = data.get('uid')
+        email = data.get('email')
+        name = data.get('name', email.split('@')[0])
+        
+        # Check if user already exists
+        existing_user = db.query(User).filter(User.uid == uid).first()
+        
+        if existing_user:
+            return jsonify({
+                'message': 'User already exists',
+                'user': existing_user.to_dict()
+            }), 200
+        
+        # Create new user
+        user = User(
+            uid=uid,
+            name=name,
+            email=email
+        )
+        
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+        print(f"✓ User registered in database: {email} (UID: {uid})")
+        
+        return jsonify({
+            'message': 'User registered successfully',
+            'user': user.to_dict()
+        }), 201
+        
+    except Exception as e:
+        print(f"Error registering user: {e}")
+        db.rollback()
         return jsonify({'error': str(e)}), 500

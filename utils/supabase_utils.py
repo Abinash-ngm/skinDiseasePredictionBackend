@@ -1,4 +1,4 @@
-from supabase import create_client
+from supabase.client import create_client
 from typing import Optional, Any
 from config import Config
 import uuid
