@@ -91,16 +91,27 @@ def get_scan_history(user_uid):
     try:
         from app import db
         
+        print("\n" + "="*80)
+        print(f"📊 Fetching Scan History from Neon Database for user: {user_uid}")
+        print("="*80)
+        
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
         disease_type = request.args.get('type', None)
         
+        print(f"Pagination: page={page}, per_page={per_page}")
+        if disease_type:
+            print(f"Filter: disease_type={disease_type}")
+        
         # Get user
         user = db.query(User).filter(User.uid == user_uid).first()
         
         if not user:
+            print(f"❌ User not found with UID: {user_uid}")
             return jsonify({'error': 'User not found'}), 404
+        
+        print(f"User found: {user.email} (ID: {user.id})")
         
         # Build query
         query = db.query(Scan).filter(Scan.user_id == user.id)
@@ -116,8 +127,17 @@ def get_scan_history(user_uid):
         scans = query.limit(per_page).offset(offset).all()
         total = query.count()
         
+        # Log retrieved scans
+        import json
+        scans_data = [scan.to_dict() for scan in scans]
+        print(f"\nRetrieved {len(scans)} scans (Total: {total}):")
+        print(json.dumps(scans_data, indent=2))
+        print("="*80)
+        print("✅ Scan history fetched successfully!")
+        print("="*80 + "\n")
+        
         return jsonify({
-            'scans': [scan.to_dict() for scan in scans],
+            'scans': scans_data,
             'total': total,
             'page': page,
             'per_page': per_page,
@@ -125,7 +145,9 @@ def get_scan_history(user_uid):
         }), 200
         
     except Exception as e:
-        print(f"Error fetching scan history: {e}")
+        print(f"\n❌ Error fetching scan history: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -191,6 +213,10 @@ def scan_skin():
         scan_id = None
         if user_id_to_save is not None:
             try:
+                print("\n" + "="*80)
+                print("💾 Saving Skin Scan to Neon Database...")
+                print("="*80)
+                
                 scan = Scan(
                     user_id=user_id_to_save,
                     disease_type='skin',
@@ -207,9 +233,28 @@ def scan_skin():
                 db.refresh(scan)
                 scan_id = str(scan.id)
                 
-                print(f"✓ Scan saved to database with ID: {scan_id}")
+                # Log the saved scan data
+                import json
+                saved_data = {
+                    'scan_id': scan_id,
+                    'user_id': str(user_id_to_save),
+                    'disease_type': 'skin',
+                    'disease_name': analysis_result.get('disease_name', 'Unknown'),
+                    'confidence': float(analysis_result.get('confidence', 0)),
+                    'severity': analysis_result.get('severity', 'medium'),
+                    'description': analysis_result.get('description', ''),
+                    'recommendations': analysis_result.get('recommendations', []),
+                    'image_url': image_url
+                }
+                print(json.dumps(saved_data, indent=2))
+                print("="*80)
+                print("✅ Scan saved to Neon PostgreSQL successfully!")
+                print("="*80 + "\n")
             except Exception as db_error:
-                print(f"Warning: Failed to save scan to database: {db_error}")
+                print(f"\n❌ Database Error: Failed to save scan")
+                print(f"Error: {db_error}")
+                import traceback
+                traceback.print_exc()
                 db.rollback()
                 # Continue anyway - don't fail the request
         
@@ -295,6 +340,10 @@ def scan_eye():
         scan_id = None
         if user_id_to_save is not None:
             try:
+                print("\n" + "="*80)
+                print("💾 Saving Eye Scan to Neon Database...")
+                print("="*80)
+                
                 scan = Scan(
                     user_id=user_id_to_save,
                     disease_type='eye',
@@ -311,9 +360,28 @@ def scan_eye():
                 db.refresh(scan)
                 scan_id = str(scan.id)
                 
-                print(f"✓ Scan saved to database with ID: {scan_id}")
+                # Log the saved scan data
+                import json
+                saved_data = {
+                    'scan_id': scan_id,
+                    'user_id': str(user_id_to_save),
+                    'disease_type': 'eye',
+                    'disease_name': analysis_result.get('disease_name', 'Unknown'),
+                    'confidence': float(analysis_result.get('confidence', 0)),
+                    'severity': analysis_result.get('severity', 'medium'),
+                    'description': analysis_result.get('description', ''),
+                    'recommendations': analysis_result.get('recommendations', []),
+                    'image_url': image_url
+                }
+                print(json.dumps(saved_data, indent=2))
+                print("="*80)
+                print("✅ Scan saved to Neon PostgreSQL successfully!")
+                print("="*80 + "\n")
             except Exception as db_error:
-                print(f"Warning: Failed to save scan to database: {db_error}")
+                print(f"\n❌ Database Error: Failed to save scan")
+                print(f"Error: {db_error}")
+                import traceback
+                traceback.print_exc()
                 db.rollback()
                 # Continue anyway - don't fail the request
         
