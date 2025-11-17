@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from models import Appointment, User
 from utils.firebase_utils import require_auth
+from utils.user_stats_utils import update_appointment_stats
 from datetime import datetime, date, time
 import uuid
+import os
 
 appointment_bp = Blueprint('appointment', __name__)
 
@@ -22,7 +24,7 @@ def create_appointment():
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
         # Get user
-        uid = request.user.get('uid')
+        uid = request.user.get('uid')  # type: ignore
         user = db.query(User).filter(User.uid == uid).first()
         
         if not user:
@@ -47,6 +49,9 @@ def create_appointment():
         db.commit()
         db.refresh(appointment)
         
+        # Update user stats
+        update_appointment_stats(db, user.id)
+        
         return jsonify({
             'message': 'Appointment booked successfully',
             'appointment': appointment.to_dict()
@@ -57,6 +62,7 @@ def create_appointment():
         return jsonify({'error': f'Invalid date/time format: {str(e)}'}), 400
     except Exception as e:
         print(f"Error creating appointment: {e}")
+        from app import db
         db.rollback()
         return jsonify({'error': str(e)}), 500
 
@@ -107,14 +113,14 @@ def cancel_appointment(appointment_id):
             return jsonify({'error': 'Appointment not found'}), 404
         
         # Verify user owns this appointment
-        uid = request.user.get('uid')
+        uid = request.user.get('uid')  # type: ignore
         user = db.query(User).filter(User.uid == uid).first()
         
-        if str(appointment.user_id) != str(user.id):
+        if not user or str(appointment.user_id) != str(user.id):
             return jsonify({'error': 'Unauthorized'}), 403
         
         # Update status to cancelled
-        appointment.status = 'Cancelled'
+        setattr(appointment, 'status', 'Cancelled')
         db.commit()
         
         return jsonify({
@@ -126,6 +132,7 @@ def cancel_appointment(appointment_id):
         return jsonify({'error': 'Invalid appointment ID'}), 400
     except Exception as e:
         print(f"Error cancelling appointment: {e}")
+        from app import db
         db.rollback()
         return jsonify({'error': str(e)}), 500
 
@@ -146,7 +153,7 @@ def update_appointment(appointment_id):
         
         # Update status
         if 'status' in data:
-            appointment.status = data['status']
+            setattr(appointment, 'status', data['status'])
         
         db.commit()
         db.refresh(appointment)
@@ -158,5 +165,6 @@ def update_appointment(appointment_id):
         
     except Exception as e:
         print(f"Error updating appointment: {e}")
+        from app import db
         db.rollback()
         return jsonify({'error': str(e)}), 500

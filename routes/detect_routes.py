@@ -4,6 +4,7 @@ from models import Scan, User
 from utils.firebase_utils import require_auth
 from utils.supabase_utils import upload_image
 from utils.groq_utils import analyze_disease
+from utils.user_stats_utils import update_scan_stats
 from datetime import datetime
 import os
 
@@ -151,6 +152,60 @@ def get_scan_history(user_uid):
         return jsonify({'error': str(e)}), 500
 
 
+@detect_bp.route('/stats/<user_uid>', methods=['GET'])
+@require_auth
+def get_user_stats(user_uid):
+    """Get user statistics for dashboard"""
+    try:
+        from app import db
+        from models import UserStats
+        
+        print("\n" + "="*80)
+        print(f"📊 Fetching User Stats from Neon Database for user: {user_uid}")
+        print("="*80)
+        
+        # Get user
+        user = db.query(User).filter(User.uid == user_uid).first()
+        
+        if not user:
+            print(f"❌ User not found with UID: {user_uid}")
+            return jsonify({'error': 'User not found'}), 404
+        
+        print(f"User found: {user.email} (ID: {user.id})")
+        
+        # Get user stats
+        user_stats = db.query(UserStats).filter(UserStats.user_id == user.id).first()
+        
+        # If no stats found, return default values
+        if not user_stats:
+            stats_data = {
+                'total_scans': 0,
+                'skin_scans': 0,
+                'eye_scans': 0,
+                'total_appointments': 0,
+                'last_scan_date': None,
+                'last_appointment_date': None
+            }
+        else:
+            stats_data = user_stats.to_dict()
+        
+        print(f"\nRetrieved user stats:")
+        print(f"  - Total scans: {stats_data['total_scans']}")
+        print(f"  - Skin scans: {stats_data['skin_scans']}")
+        print(f"  - Eye scans: {stats_data['eye_scans']}")
+        print(f"  - Total appointments: {stats_data['total_appointments']}")
+        print("="*80)
+        print("✅ User stats fetched successfully!")
+        print("="*80 + "\n")
+        
+        return jsonify(stats_data), 200
+        
+    except Exception as e:
+        print(f"\n❌ Error fetching user stats: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 # Frontend-compatible endpoints (/api/scan/skin and /api/scan/eye)
 @scan_bp.route('/skin', methods=['POST'])
 def scan_skin():
@@ -232,6 +287,9 @@ def scan_skin():
                 db.commit()
                 db.refresh(scan)
                 scan_id = str(scan.id)
+                
+                # Update user stats
+                update_scan_stats(db, user_id_to_save, 'skin')
                 
                 # Log the saved scan data
                 import json
@@ -359,6 +417,9 @@ def scan_eye():
                 db.commit()
                 db.refresh(scan)
                 scan_id = str(scan.id)
+                
+                # Update user stats
+                update_scan_stats(db, user_id_to_save, 'eye')
                 
                 # Log the saved scan data
                 import json
